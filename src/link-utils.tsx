@@ -75,10 +75,12 @@ export function trafficColumns(link: Link, usage_monitor: UsageMonitor): Listing
     if (!ACTIVE_STATES.has(link.OperationalState))
         return [{ title: operationalStateText(link.OperationalState), props: { colSpan: 2 } }];
 
-    const samples = usage_monitor.samples[link.Name];
+    const rates = usage_monitor.rates(link.Name);
+    const format = (bytes: number | null | undefined) =>
+        (bytes === null || bytes === undefined) ? "" : cockpit.format_bits_per_sec(bytes * 8);
     return [
-        { title: samples ? cockpit.format_bits_per_sec(samples[1][0] * 8) : "" },
-        { title: samples ? cockpit.format_bits_per_sec(samples[0][0] * 8) : "" },
+        { title: format(rates?.tx) },
+        { title: format(rates?.rx) },
     ];
 }
 
