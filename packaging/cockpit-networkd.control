@@ -1,0 +1,14 @@
+Package: cockpit-networkd
+Version: VERSION
+Section: admin
+Priority: optional
+Architecture: all
+Depends: cockpit-bridge, systemd, iproute2
+Maintainer: MAINTAINER
+Installed-Size: INSTALLED_SIZE
+Homepage: https://github.com/sammiq/cockpit-networkd
+Description: Cockpit networking page for systemd-networkd
+ Shows network interfaces managed by systemd-networkd in the Cockpit web
+ console: transmit and receive graphs, interfaces with their addresses,
+ state, routes and DNS, bond and bridge ports, and networkd's logs.
+ Read-only. For hosts that use systemd-networkd instead of NetworkManager.
