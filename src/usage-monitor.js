@@ -52,6 +52,8 @@ export class UsageMonitor {
         this.grid = cockpit.grid(1000, -1, -0);
         /** @type {Record<string, [number[], number[]]>} */
         this.samples = { };
+        /** @type {Record<string, { rx: number | null, tx: number | null }>} */
+        this.last = { };
 
         this.channel.follow();
         this.grid.walk();
@@ -63,6 +65,30 @@ export class UsageMonitor {
                 this.grid.add(this.channel, ["rx", iface]),
                 this.grid.add(this.channel, ["tx", iface])
             ];
+            this.last[iface] = { rx: null, tx: null };
         }
+    }
+
+    /*
+     * Current rx/tx in bytes per second, holding on to the last real reading.
+     *
+     * The grid moves on to a new, empty slot on its own one-second timer and
+     * the bridge's data fills it shortly after. Reading the raw slot in
+     * between gives undefined/null, which renders as a blank or "0 bps" for a
+     * moment and makes the table flicker. Only real numbers replace the
+     * remembered value; null means no reading has arrived yet.
+     */
+    rates(iface) {
+        const samples = this.samples[iface];
+        const last = this.last[iface];
+        if (!samples || !last)
+            return null;
+        const rx = samples[0][0];
+        const tx = samples[1][0];
+        if (typeof rx === "number")
+            last.rx = rx;
+        if (typeof tx === "number")
+            last.tx = tx;
+        return last;
     }
 }
