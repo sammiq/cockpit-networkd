@@ -1,0 +1,5 @@
+[Match]
+Name=dhcp0
+
+[Network]
+DHCP=ipv4

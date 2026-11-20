@@ -1,0 +1,7 @@
+[Match]
+Name=lan0
+
+[Network]
+Address=10.99.0.1/24
+Address=fd00:99::1/64
+VLAN=lan0.20

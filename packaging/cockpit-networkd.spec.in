@@ -1,17 +1,17 @@
-Name: cockpit-starter-kit
+Name: cockpit-networkd
 Version: %{VERSION}
 Release: 1%{?dist}
-Summary: Cockpit Starter Kit Example Module
+Summary: Cockpit networking page for systemd-networkd
 License: LGPL-2.1-or-later
-URL:     https://github.com/cockpit-project/starter-kit
+URL:     https://github.com/sammiq/cockpit-networkd
 
 # distributions which ship nodejs-esbuild can rebuild the bundle during package build
 %if 0%{?fedora} >= 42
 %define rebuild_bundle 1
 %endif
 
-Source0: https://github.com/cockpit-project/starter-kit/releases/download/%{version}/%{name}-%{version}.tar.xz
-Source1: https://github.com/cockpit-project/starter-kit/releases/download/%{version}/%{name}-node-%{version}.tar.xz
+Source0: https://github.com/sammiq/cockpit-networkd/releases/download/%{version}/%{name}-%{version}.tar.xz
+Source1: https://github.com/sammiq/cockpit-networkd/releases/download/%{version}/%{name}-node-%{version}.tar.xz
 
 BuildArch: noarch
 %if ! 0%{?suse_version}
@@ -38,7 +38,7 @@ Requires: cockpit-bridge
 %{NPM_PROVIDES}
 
 %description
-Cockpit Starter Kit Example Module
+Cockpit networking page for systemd-networkd
 
 %prep
 %autosetup -n %{name}

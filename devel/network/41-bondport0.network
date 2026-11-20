@@ -1,0 +1,5 @@
+[Match]
+Name=bondport0
+
+[Network]
+Bond=bond0

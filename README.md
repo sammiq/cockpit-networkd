@@ -1,203 +1,112 @@
-# Cockpit Starter Kit
+# cockpit-networkd
 
-Scaffolding for a [Cockpit](https://cockpit-project.org/) module.
+A [Cockpit](https://cockpit-project.org/) networking page for hosts that use
+**systemd-networkd** instead of NetworkManager. It follows the layout of
+Cockpit's built-in Networking page:
 
-# Development dependencies
+* Transmitting / Receiving graphs
+* Interfaces: addresses, current send and receive rates, networkd setup state,
+  and bond/bridge ports listed under their parent
+* Unmanaged interfaces
+* The latest `systemd-networkd.service` log entries
 
-On Debian/Ubuntu:
+Clicking an interface opens its page at `/networkd#/<name>`, like the stock
+page: Tx/Rx graphs for just that interface, then status, carrier, IPv4/IPv6
+addresses, gateway, DNS, MTU, the bond or bridge it belongs to, and its
+`.network`/`.netdev`/`.link` files, followed by a Ports table (for a bond or
+bridge) and a Routes table.
 
-    sudo apt install gettext nodejs npm make
+It is **read-only** for now.
 
-On Fedora:
+It appears in the menu as "Networking" on any host with systemd-networkd's
+D-Bus policy installed. Cockpit's own page only appears on hosts with
+NetworkManager, so on a networkd-only server you see just this one. On a
+machine with both installed, both pages appear.
 
-    sudo dnf install gettext nodejs npm make
+## How it works
 
-On openSUSE Tumbleweed and Leap:
+| What | Source |
+|------|--------|
+| Interfaces, state, addresses | `org.freedesktop.network1.Manager.Describe()` over D-Bus. Refreshed on networkd's `PropertiesChanged` signals, plus a 5 s poll for things that don't emit a signal (links coming and going, address changes) |
+| Bond/bridge membership | `ip -j link` (networkd's `Describe()` doesn't include it) |
+| Graphs and rates | Cockpit's metrics channel: PCP if installed, otherwise the bridge's own `/proc/net/dev` reader. No NetworkManager involved |
+| Logs | journal, `_SYSTEMD_UNIT=systemd-networkd.service` |
 
-    sudo zypper in gettext-runtime nodejs npm make
+Code: `src/model.ts` (data), `src/network-page.tsx` (overview),
+`src/interface-page.tsx` (one interface), `src/link-utils.tsx` (shared),
+`src/plots.jsx` and `src/usage-monitor.js` (adapted from Cockpit's
+`pkg/networkmanager`).
 
-# Getting and building the source
+Needs a systemd recent enough to have networkd's `Describe()` D-Bus method;
+very old releases lack it. Developed against Debian Trixie (systemd 257,
+Cockpit 337).
 
-These commands check out the source and build it into the `dist/` directory:
+# Development
 
-```
-git clone https://github.com/cockpit-project/starter-kit.git
-cd starter-kit
-make
-```
+Dependencies (Fedora: `sudo dnf install gettext nodejs npm make podman`):
 
-# Installing
+    make                   # fetch pkg/lib from Cockpit, npm install, build dist/
 
-`make install` compiles and installs the package in `/usr/local/share/cockpit/`. The
-convenience targets `srpm` and `rpm` build the source and binary rpms,
-respectively. Both of these make use of the `dist` target, which is used
-to generate the distribution tarball. In `production` mode, source files are
-automatically minified and compressed. Set `NODE_ENV=production` if you want to
-duplicate this behavior.
+## Dev container (recommended)
 
-For development, you usually want to run your module straight out of the git
-tree. To do that, run `make devel-install`, which links your checkout to the
-location were cockpit-bridge looks for packages. If you prefer to do
-this manually:
+Your workstation probably runs NetworkManager, so development happens in a
+rootless podman container running Debian Trixie with systemd-networkd and
+Cockpit. It has no NetworkManager, and your host's networking is left alone:
 
-```
-mkdir -p ~/.local/share/cockpit
-ln -s `pwd`/dist ~/.local/share/cockpit/starter-kit
-```
+    make devel-container   # build image on first run, then start it
+    make watch             # rebuild dist/ on every change
 
-After changing the code and running `make` again, reload the Cockpit page in
-your browser.
+Open <http://127.0.0.1:9091/networkd> and log in as `admin` / `admin`. After
+each rebuild, reload the page. The container serves your checkout's `dist/`
+directly.
 
-You can also use
-[watch mode](https://esbuild.github.io/api/#watch) to
-automatically update the bundle on every code change with
+The container ships sample configs in `devel/network/`: a static link, a VLAN,
+a bridge with a port, an active-backup bond with two ports, a DHCP link that
+never gets a lease, an administratively down link, an unmanaged netdev, and
+`uplink0`. That last one is a veth whose peer sits in a separate network
+namespace acting as an upstream router, with generated traffic in both
+directions so the graphs move (`devel/fake-upstream.sh`).
 
-    ./build.js -w
+Other targets: `make devel-shell` (root shell in the container), `make
+devel-stop`, `make devel-image` (rebuild after changing `devel/`).
+`DEVEL_PORT=…` changes the port. `devel/bin/devel-container logs` follows the
+networkd journal.
 
-or
+To change what networkd sees, edit `devel/network/` and run `make devel-image
+devel-container`, or experiment live in `make devel-shell` with
+`networkctl reload`.
 
-    make watch
+Notes: the container needs `--privileged`. It is rootless, so this is
+limited to your own user account's privileges. systemd needs it for its
+service sandboxing, and networkd needs `CAP_NET_ADMIN`/`CAP_SYS_ADMIN` in the
+container's own network namespace. Browser traffic to the container doesn't
+show on its `enp7s0`, because podman forwards the port at the socket level.
 
-When developing against a virtual machine, watch mode can also automatically upload
-the code changes by setting the `RSYNC` environment variable to
-the remote hostname.
+## Against a real server
 
-    RSYNC=c make watch
+`RSYNC_DEVEL=server make watch` copies each build to `~/.local/share/cockpit/`
+on `server` over ssh. Remove it there with `rm -r
+~/.local/share/cockpit/networkd`.
 
-When developing against a remote host as a normal user, `RSYNC_DEVEL` can be
-set to upload code changes to `~/.local/share/cockpit/` instead of
-`/usr/local`.
+## Installing
 
-    RSYNC_DEVEL=example.com make watch
+`make install` installs to `/usr/local/share/cockpit/networkd`
+(`PREFIX=/usr` for `/usr/share`). `make rpm` and `packaging/arch` exist from
+the starter kit; there is no Debian packaging yet.
 
-To "uninstall" the locally installed version, run `make devel-uninstall`, or
-remove manually the symlink:
+## Checks
 
-    rm ~/.local/share/cockpit/starter-kit
-
-# Running eslint
-
-Cockpit Starter Kit uses [ESLint](https://eslint.org/) to automatically check
-JavaScript/TypeScript code style in `.js[x]` and `.ts[x]` files.
-
-eslint is executed as part of `test/static-code`, aka. `make codecheck`.
-
-For developer convenience, the ESLint can be started explicitly by:
-
-    npm run eslint
-
-Violations of some rules can be fixed automatically by:
-
-    npm run eslint:fix
-
-Rules configuration can be found in the `.eslintrc.json` file.
-
-## Running stylelint
-
-Cockpit uses [Stylelint](https://stylelint.io/) to automatically check CSS code
-style in `.css` and `scss` files.
-
-styleint is executed as part of `test/static-code`, aka. `make codecheck`.
-
-For developer convenience, the Stylelint can be started explicitly by:
-
+    npm run eslint         # or eslint:fix
     npm run stylelint
+    test/common/typecheck
 
-Violations of some rules can be fixed automatically by:
+`make codecheck` runs all of these. The VM-based integration tests from the
+starter kit (`make check`, `test/check-application`) need `/dev/kvm` and a
+Cockpit test image with systemd-networkd. They have not been adapted or run
+yet.
 
-    npm run stylelint:fix
+# Based on
 
-Rules configuration can be found in the `.stylelintrc.json` file.
-
-# Running tests locally
-
-Run `make check` to build an RPM, install it into a standard Cockpit test VM
-(centos-9-stream by default), and run the test/check-application integration test on
-it. This uses Cockpit's Chrome DevTools Protocol based browser tests, through a
-Python API abstraction. Note that this API is not guaranteed to be stable, so
-if you run into failures and don't want to adjust tests, consider checking out
-Cockpit's test/common from a tag instead of main (see the `test/common`
-target in `Makefile`).
-
-After the test VM is prepared, you can manually run the test without rebuilding
-the VM, possibly with extra options for tracing and halting on test failures
-(for interactive debugging):
-
-    TEST_OS=centos-9-stream test/check-application -tvs
-
-It is possible to setup the test environment without running the tests:
-
-    TEST_OS=centos-9-stream make prepare-check
-
-You can also run the test against a different Cockpit image, for example:
-
-    TEST_OS=fedora-40 make check
-
-# Running tests in CI
-
-These tests can be run in [Cirrus CI](https://cirrus-ci.org/), on their free
-[Linux Containers](https://cirrus-ci.org/guide/linux/) environment which
-explicitly supports `/dev/kvm`. Please see [Quick
-Start](https://cirrus-ci.org/guide/quick-start/) how to set up Cirrus CI for
-your project after forking from starter-kit.
-
-The included [.cirrus.yml](./.cirrus.yml) runs the integration tests for two
-operating systems (Fedora and CentOS 8). Note that if/once your project grows
-bigger, or gets frequent changes, you may need to move to a paid account, or
-different infrastructure with more capacity.
-
-Tests also run in [Packit](https://packit.dev/) for all currently supported
-Fedora releases; see the [packit.yaml](./packit.yaml) control file. You need to
-[enable Packit-as-a-service](https://packit.dev/docs/packit-service/) in your GitHub project to use this.
-To run the tests in the exact same way for upstream pull requests and for
-[Fedora package update gating](https://docs.fedoraproject.org/en-US/ci/), the
-tests are wrapped in the [FMF metadata format](https://github.com/teemtee/fmf)
-for using with the [tmt test management tool](https://docs.fedoraproject.org/en-US/ci/tmt/).
-Note that Packit tests can *not* run their own virtual machine images, thus
-they only run [@nondestructive tests](https://github.com/cockpit-project/cockpit/blob/main/test/common/testlib.py).
-
-# Customizing
-
-After cloning the Starter Kit you should rename the files, package names, and
-labels to your own project's name. Use these commands to find out what to
-change:
-
-    find -iname '*starter*'
-    git grep -i starter
-
-# Automated release
-
-Once your cloned project is ready for a release, you should consider automating
-that. The intention is that the only manual step for releasing a project is to create
-a signed tag for the version number, which includes a summary of the noteworthy
-changes:
-
-```
-123
-
-- this new feature
-- fix bug #123
-```
-
-Pushing the release tag triggers the [release.yml](.github/workflows/release.yml.disabled)
-[GitHub action](https://github.com/features/actions) workflow. This creates the
-official release tarball and publishes as upstream release to GitHub. The
-workflow is disabled by default -- to use it, edit the file as per the comment
-at the top, and rename it to just `*.yml`.
-
-The Fedora and COPR releases are done with [Packit](https://packit.dev/),
-see the [packit.yaml](./packit.yaml) control file.
-
-# Automated maintenance
-
-It is important to keep your [NPM modules](./package.json) up to date, to keep
-up with security updates and bug fixes. This happens with
-[dependabot](https://github.com/dependabot),
-see [configuration file](.github/dependabot.yml).
-
-# Further reading
-
- * The [Starter Kit announcement](https://cockpit-project.org/blog/cockpit-starter-kit.html)
-   blog post explains the rationale for this project.
- * [Cockpit Deployment and Developer documentation](https://cockpit-project.org/guide/latest/)
- * [Make your project easily discoverable](https://cockpit-project.org/blog/making-a-cockpit-application.html)
+[cockpit-project/starter-kit](https://github.com/cockpit-project/starter-kit).
+`pkg/lib` and `test/common` are fetched from Cockpit at the commit pinned in
+the `Makefile`.

@@ -3,9 +3,19 @@
         "cockpit": "137"
     },
 
-    "tools": {
+    "conditions": [
+        {"path-exists": "/usr/share/dbus-1/system.d/org.freedesktop.network1.conf"}
+    ],
+
+    "menu": {
         "index": {
-            "label": "Starter Kit"
+            "label": "Networking",
+            "order": 40,
+            "keywords": [
+                {
+                    "matches": ["network", "networkd", "systemd-networkd", "interface", "bridge", "vlan", "bond", "ipv4", "ipv6"]
+                }
+            ]
         }
     }
 }

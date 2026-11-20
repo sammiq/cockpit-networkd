@@ -1,6 +1,66 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 @use "page.scss";
+@use "ct-card";
 
-p {
-    font-weight: bold;
+// Matches pkg/networkmanager/networking.scss on the stock page
+#networking,
+#network-interface {
+  .pf-v6-c-card {
+    @extend .ct-card;
+  }
+
+  .pf-v6-l-gallery {
+    --pf-v6-l-gallery--GridTemplateColumns: 1fr;
+  }
+
+  .cockpit-log-panel {
+    max-inline-size: 100vw;
+  }
+}
+
+.network-graph {
+  block-size: 180px;
+}
+
+.networkd-port-name {
+  padding-inline-start: var(--pf-t--global--spacer--lg);
+}
+
+.networkd-subtle {
+  color: var(--pf-t--global--text--color--subtle);
+}
+
+.networkd-plain-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pf-v6-c-page__main-breadcrumb + .networking-graphs {
+  // Remove the top padding when following a breadcrumb
+  padding-block-start: 0;
+}
+
+.network-interface-details-title {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: start;
+  gap: var(--pf-t--global--spacer--md);
+
+  #network-interface-hw,
+  #network-interface-mac {
+    font-weight: normal;
+    color: var(--pf-t--global--text--color--subtle);
+  }
+}
+
+#networking-interfaces,
+#networking-unmanaged-interfaces,
+#network-interface-members {
+  th > .pf-m-link {
+    // Preserve the same baseline as other elements, so items align
+    display: inline;
+    // Expand the link to the container, for easier clickability
+    inline-size: 100%;
+  }
 }

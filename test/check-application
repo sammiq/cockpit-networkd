@@ -1,52 +1,32 @@
 #!/usr/bin/python3 -cimport os, sys; os.execv(os.path.dirname(sys.argv[1]) + "/common/pywrap", sys.argv)
 
-# Run this with --help to see available options for tracing and debugging
+# NOT YET RUN: needs /dev/kvm and a Cockpit test image (TEST_OS) on which
+# systemd-networkd manages the network. The dev container (README.md) is the
+# tested path for now.
+#
 # See https://github.com/cockpit-project/cockpit/blob/main/test/common/testlib.py
 # "class Browser" and "class MachineCase" for the available API.
 
 import testlib
 
 
-# Nondestructive tests all run in the same running VM. This allows them to run in Packit, Fedora, and
-# RHEL dist-git gating. They must not permanently change any file or configuration on the system in a
-# way that influences other tests.
 @testlib.nondestructive
-class TestApplication(testlib.MachineCase):
+class TestNetworkd(testlib.MachineCase):
     def testBasic(self):
         b = self.browser
         m = self.machine
 
-        self.login_and_go("/starter-kit")
-        # verify expected heading
-        b.wait_text(".pf-v6-c-card__title", "Starter Kit")
+        # a dummy link that networkd configures, removed again on cleanup
+        self.write_file("/run/systemd/network/50-cktest0.netdev", "[NetDev]\nName=cktest0\nKind=dummy\n")
+        self.write_file("/run/systemd/network/50-cktest0.network",
+                        "[Match]\nName=cktest0\n\n[Network]\nAddress=10.123.0.1/24\n")
+        m.execute("networkctl reload")
+        self.addCleanup(m.execute, "ip link del cktest0; networkctl reload")
 
-        # verify expected host name
-        hostname = m.execute("cat /etc/hostname").strip()
-        b.wait_in_text(".pf-v6-c-alert__title", "Running on " + hostname)
-
-        # change current hostname
-        self.write_file("/etc/hostname", "new-" + hostname)
-        # verify new hostname name
-        b.wait_in_text(".pf-v6-c-alert__title", "Running on new-" + hostname)
-
-        # change language to German
-        b.switch_to_top()
-        # the menu and dialog changed several times
-        b.click("#toggle-menu")
-        b.click("button.display-language-menu")
-        b.wait_popup('display-language-modal')
-        b.click("#display-language-modal [data-value='de-de'] button")
-        b.click("#display-language-modal button.pf-m-primary")
-        b.wait_visible("#content")
-        # menu label (from manifest) should be translated
-        b.wait_text("#host-apps a[href='/starter-kit']", "Bausatz")
-        # window title should be translated; this is not considered as "visible"
-        self.assertIn("Bausatz", b.call_js_func("ph_text", "head title"))
-
-        b.go("/starter-kit")
-        b.enter_page("/starter-kit")
-        # page label (from js) should be translated
-        b.wait_in_text(".pf-v6-c-alert__title", "Läuft auf")
+        self.login_and_go("/networkd")
+        b.wait_visible("#networking-interfaces")
+        b.wait_in_text("#networking-interfaces tr[data-row-id='cktest0']", "10.123.0.1/24")
+        b.wait_visible("#networking-graphs")
 
 
 if __name__ == '__main__':

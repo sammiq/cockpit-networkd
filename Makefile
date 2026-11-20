@@ -117,6 +117,23 @@ devel-install: $(DIST_TEST)
 devel-uninstall:
 	rm -f ~/.local/share/cockpit/$(PACKAGE_NAME)
 
+# Development container with systemd-networkd + Cockpit (see devel/); serves
+# this checkout's dist/ at http://127.0.0.1:$(DEVEL_PORT)/networkd
+DEVEL_PORT ?= 9091
+export DEVEL_PORT
+
+devel-image:
+	devel/bin/devel-container build
+
+devel-container: $(DIST_TEST)
+	devel/bin/devel-container start
+
+devel-stop:
+	devel/bin/devel-container stop
+
+devel-shell:
+	devel/bin/devel-container shell
+
 print-version:
 	@echo "$(VERSION)"
 
@@ -202,4 +219,4 @@ $(NODE_MODULES_TEST): package.json
 	for _ in `seq 3`; do timeout 10m env -u NODE_ENV npm install --ignore-scripts && exit 0; done; exit 1
 	env -u NODE_ENV npm prune
 
-.PHONY: all clean install devel-install devel-uninstall print-version dist node-cache rpm prepare-check check vm print-vm
+.PHONY: all clean install devel-install devel-uninstall devel-image devel-container devel-stop devel-shell print-version dist node-cache rpm prepare-check check vm print-vm

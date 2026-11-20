@@ -1,0 +1,47 @@
+#!/bin/sh
+# Run the development container: Debian + systemd-networkd + Cockpit, with this
+# checkout's dist/ installed as the "networkd" Cockpit package.
+#
+#   devel/bin/devel-container [start|stop|shell|logs]
+#
+# Env: DEVEL_PORT (default 9091), DEVEL_IMAGE, DEVEL_NAME, DEVEL_BASE
+set -eu
+
+cd "$(dirname "$0")/../.."
+PORT="${DEVEL_PORT:-9091}"
+IMAGE="${DEVEL_IMAGE:-localhost/cockpit-networkd-devel}"
+NAME="${DEVEL_NAME:-cockpit-networkd-devel}"
+BASE="${DEVEL_BASE:-docker.io/library/debian:trixie}"
+
+case "${1:-start}" in
+    build)
+        podman build --build-arg BASE="$BASE" -t "$IMAGE" devel/
+        ;;
+    start)
+        [ -d dist ] || { echo "dist/ missing: run 'make' first" >&2; exit 1; }
+        podman image exists "$IMAGE" || "$0" build
+        podman rm -f "$NAME" >/dev/null 2>&1 || true
+        # --privileged is needed for systemd + networkd; rootless it is
+        # still confined to your own user namespace.
+        podman run -d --name "$NAME" --hostname networkd-devel --privileged \
+            -p "127.0.0.1:${PORT}:9090" \
+            -v "$PWD:/src:ro,z" \
+            "$IMAGE" >/dev/null
+        # Mount the checkout, not dist/: every build deletes and recreates
+        # dist/, which would leave a dist/ bind mount pointing at nothing.
+        podman exec "$NAME" sh -c "mkdir -p /usr/local/share/cockpit && ln -sfn /src/dist /usr/local/share/cockpit/networkd"
+        echo "Cockpit: http://127.0.0.1:${PORT}/networkd   (login admin / admin)"
+        ;;
+    stop)
+        podman rm -f "$NAME"
+        ;;
+    shell)
+        exec podman exec -it "$NAME" /bin/bash
+        ;;
+    logs)
+        exec podman exec -it "$NAME" journalctl -f -u systemd-networkd
+        ;;
+    *)
+        echo "usage: $0 [build|start|stop|shell|logs]" >&2; exit 2
+        ;;
+esac

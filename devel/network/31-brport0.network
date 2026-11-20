@@ -1,0 +1,5 @@
+[Match]
+Name=brport0
+
+[Network]
+Bridge=br0

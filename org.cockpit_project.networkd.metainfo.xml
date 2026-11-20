@@ -1,23 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="addon">
-  <id>org.cockpit_project.starter_kit</id>
+  <id>org.cockpit_project.networkd</id>
   <metadata_license>CC0-1.0</metadata_license>
-  <name>Starter Kit</name>
-  <summary>Scaffolding for a cockpit module</summary>
+  <name>Networking (systemd-networkd)</name>
+  <summary>Monitor network interfaces managed by systemd-networkd</summary>
   <description>
     <p>
-      Scaffolding for a cockpit module.
-
-      This is just a demo which does not do much. Please replace
-      this with a real description.
+      A Cockpit networking page for hosts that use systemd-networkd
+      instead of NetworkManager. Shows transmit and receive graphs,
+      interfaces with their addresses and state, and network logs.
     </p>
   </description>
   <extends>org.cockpit_project.cockpit</extends>
-  <launchable type="cockpit-manifest">starter-kit</launchable>
-  <url type="homepage">https://github.com/cockpit-project/starter-kit</url>
-  <url type="bugtracker">https://github.com/cockpit-project/starter-kit/issues</url>
-  <update_contact>cockpit-devel_AT_lists.fedorahosted.org</update_contact>
-  <developer id="org.cockpit-project">
-    <name>Cockpit Project</name>
-  </developer>
+  <launchable type="cockpit-manifest">networkd</launchable>
+  <url type="homepage">https://github.com/sammiq/cockpit-networkd</url>
+  <url type="bugtracker">https://github.com/sammiq/cockpit-networkd/issues</url>
 </component>

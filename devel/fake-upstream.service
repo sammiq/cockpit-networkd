@@ -1,0 +1,12 @@
+# Dev container only: see fake-upstream.sh
+[Unit]
+Description=Fake upstream router and traffic for the networkd dev container
+After=systemd-networkd.service
+Wants=systemd-networkd.service
+
+[Service]
+ExecStart=/usr/local/bin/fake-upstream.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

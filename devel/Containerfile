@@ -1,0 +1,38 @@
+# Development container: systemd + systemd-networkd + Cockpit, matching the
+# Debian Trixie production server. NetworkManager is deliberately absent.
+#
+# Built and run by `make devel-container`; see README.md.
+ARG BASE=docker.io/library/debian:trixie
+FROM ${BASE}
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        systemd systemd-sysv udev dbus iproute2 iputils-ping sudo \
+        cockpit-ws cockpit-bridge cockpit-system \
+ && rm -rf /var/lib/apt/lists/*
+
+# Plain HTTP on 9090 is fine for a local dev container
+RUN mkdir -p /etc/cockpit \
+ && printf '[WebService]\nAllowUnencrypted=true\n' > /etc/cockpit/cockpit.conf
+
+# Login: admin / admin. "sudo" gives Administrative access; "adm" lets it read
+# the system journal with Limited access, as Debian's installer does for the
+# first user.
+RUN useradd -m -s /bin/bash -G sudo,adm admin && echo admin:admin | chpasswd
+
+# Units that cannot work, or are just noise, inside a container
+# (wait-online fails by design: dhcp0 never gets a lease)
+RUN systemctl mask systemd-resolved.service systemd-timesyncd.service \
+        systemd-networkd-wait-online.service \
+        getty@.service console-getty.service \
+        sys-kernel-config.mount sys-kernel-debug.mount sys-kernel-tracing.mount \
+        proc-sys-fs-binfmt_misc.automount 2>/dev/null || true
+
+COPY network/ /etc/systemd/network/
+COPY fake-upstream.sh /usr/local/bin/
+COPY fake-upstream.service /etc/systemd/system/
+RUN systemctl enable systemd-networkd.service cockpit.socket fake-upstream.service
+
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
