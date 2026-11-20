@@ -90,9 +90,34 @@ on `server` over ssh. Remove it there with `rm -r
 
 ## Installing
 
+### Debian / Ubuntu package
+
+    make deb               # -> cockpit-networkd_<version>_all.deb
+    scp cockpit-networkd_*_all.deb server:
+    ssh server sudo apt install ./cockpit-networkd_<version>_all.deb
+
+It installs to `/usr/share/cockpit/networkd` and depends on `cockpit-bridge`,
+`systemd` and `iproute2`. Remove it with `apt remove cockpit-networkd`.
+
+* The target always does a fresh production (minified, gzipped) build, so
+  `dist/` is left in production mode afterwards. Run `make` or `make watch`
+  before going back to the dev container.
+* The version comes from `git describe`, which gives `1` until there's a
+  tag. Tag releases (e.g. `git tag 0.1`) so upgrades get increasing versions.
+* `Maintainer` is filled in from your `git config user.name`/`user.email`
+  (override with `DEB_MAINTAINER=…`).
+* It uses `dpkg-deb` if installed, otherwise runs it in a `debian:trixie`
+  container with podman.
+
+Adapted from [cockpit-sensors](https://github.com/ocristopfer/cockpit-sensors)'
+Makefile. It's a plain `dpkg-deb` build, not a full `debian/` source package,
+which is fine for installing on your own machines.
+
+### Other ways
+
 `make install` installs to `/usr/local/share/cockpit/networkd`
-(`PREFIX=/usr` for `/usr/share`). `make rpm` and `packaging/arch` exist from
-the starter kit; there is no Debian packaging yet.
+(`PREFIX=/usr` for `/usr/share`). `make rpm` and `packaging/arch` come from
+the starter kit and are untested.
 
 ## Checks
 

@@ -36,3 +36,5 @@
 /test/common/
 /test/images/
 /test/static-code
+/*.deb
+/output/
